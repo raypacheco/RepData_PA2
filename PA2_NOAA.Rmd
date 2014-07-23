@@ -1,0 +1,46 @@
+NOAA Storm Database Analysis
+============================
+
+##Introduction
+
+
+##Data Processing
+
+```{r cache = TRUE}
+filename <- "repdata-data-StormData.csv.bz2"
+bz <- bzfile(filename)
+to_read <- c("BGN_DATE", "STATE", "EVTYPE", "FATALITIES", "INJURIES", "PROPDMG", "PROPDMGEXP", "CROPDMG", "CROPDMGEXP", "LATITUDE", "LONGITUDE", "REFNUM")
+StormData <- read.csv(bz, header = TRUE, stringsAsFactors = FALSE, colClasses = to_read)
+
+stormData$BGN_DATE <- as.Date(stormData$BGN_DATE, "%m/%d/%Y")
+```
+
+```{r}
+hist(stormData$BGN_DATE, breaks="years", xlab="Year", main = "Density of Data Per Year", col = "blue")
+
+stormData <- stormData[stormData$BGN_DATE >= "1996-01-01",]
+```
+
+```{r}
+length(unique(stormData$EVTYPE))
+
+EventTable <- c("astronomical low tide", "avalanche", "blizzard", "coastal flood", "cold/wind chill", "debris flow", "dense fog", "dense smoke", "drought", "dust devil", "dust storm", "excessive heat", "extreme cold/wind chill", "flash flood", "flood", "frost/freeze", "funnel cloud", "freezing fog", "hail", "heat", "heavy rain", "heavy snow", "high surf", "high wind", "hurricane (typhoon)", "ice storm", "lake-effect snow", "lakeshore flood", "lightning", "marine hail", "marine high wind", "marine strong wind", "marine thunderstorm wind", "rip current", "seiche", "sleet", "storm surge/tide", "strong wind", "thunderstorm wind", "tornado", "tropical depression", "tropical storm", "tsunami", "volcanic ash", "waterspout", "wildfire", "winter storm", "winter weather")
+```
+
+``` {r}
+stormData$EVTYPE <- gsub(".*(tornado).*","tornado", stormData$EVTYPE)
+stormData$EVTYPE <- gsub(".*(thunderstorm|tst).*","thunderstorm",stormData$EVTYPE)
+stormData$EVTYPE <- gsub(".*(flood).*","flood",stormData$EVTYPE)
+stormData$EVTYPE <- gsub(".*wind.*"," high wind",ignore.case <- TRUE,stormData$EVTYPE)
+stormData$EVTYPE <- gsub(".*hail.*","Hail", stormData$EVTYPE)
+stormData$EVTYPE <- gsub(".*(snow).*","winter storm", stormData$EVTYPE)
+stormData$EVTYPE <- gsub(".*(flood|storm surge).*","flood",stormData$EVTYPE)
+stormData$EVTYPE <- gsub(".*(hurricane).*","hurricane",stormData$EVTYPE)
+stormData$EVTYPE <- gsub(".*(fire).*","wildfire",stormData$EVTYPE)
+stormData$EVTYPE <- gsub(".*(rain).*","heavy rain",stormData$EVTYPE)
+stormData$EVTYPE <- gsub(".*(heat|drought).*","drought",stormData$EVTYPE)
+stormData$EVTYPE <- gsub(".*(cold|freeze).*","freeze",stormData$EVTYPE)
+stormData$EVTYPE <- gsub(".*(ice|icy).*","ice storm",stormData$EVTYPE)
+stormData$EVTYPE <- gsub(".*(tropical storm).*","tropical storm",stormData$EVTYPE)
+stormData$EVTYPE <- gsub(".*(summary).*", "other", stormData$EVTYPE)
+```
