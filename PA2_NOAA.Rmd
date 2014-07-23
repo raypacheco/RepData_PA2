@@ -8,9 +8,11 @@ NOAA Storm Database Analysis
 
 ```{r cache = TRUE}
 filename <- "repdata-data-StormData.csv.bz2"
+
 bz <- bzfile(filename)
-to_read <- c("BGN_DATE", "STATE", "EVTYPE", "FATALITIES", "INJURIES", "PROPDMG", "PROPDMGEXP", "CROPDMG", "CROPDMGEXP", "LATITUDE", "LONGITUDE", "REFNUM")
-StormData <- read.csv(bz, header = TRUE, stringsAsFactors = FALSE, colClasses = to_read)
+
+to_read <- c("NULL", "character", rep("NULL", 4), "character", "character", rep("NULL", 14), "numeric", "numeric", "numeric", "character", "numeric", "character", rep("NULL", 3), "numeric", "numeric", rep("NULL", 3), "numeric")
+stormData <- read.csv(bz, header = TRUE, stringsAsFactors = FALSE, colClasses = to_read)
 
 stormData$BGN_DATE <- as.Date(stormData$BGN_DATE, "%m/%d/%Y")
 ```
@@ -21,26 +23,36 @@ hist(stormData$BGN_DATE, breaks="years", xlab="Year", main = "Density of Data Pe
 stormData <- stormData[stormData$BGN_DATE >= "1996-01-01",]
 ```
 
-```{r}
-length(unique(stormData$EVTYPE))
-
-EventTable <- c("astronomical low tide", "avalanche", "blizzard", "coastal flood", "cold/wind chill", "debris flow", "dense fog", "dense smoke", "drought", "dust devil", "dust storm", "excessive heat", "extreme cold/wind chill", "flash flood", "flood", "frost/freeze", "funnel cloud", "freezing fog", "hail", "heat", "heavy rain", "heavy snow", "high surf", "high wind", "hurricane (typhoon)", "ice storm", "lake-effect snow", "lakeshore flood", "lightning", "marine hail", "marine high wind", "marine strong wind", "marine thunderstorm wind", "rip current", "seiche", "sleet", "storm surge/tide", "strong wind", "thunderstorm wind", "tornado", "tropical depression", "tropical storm", "tsunami", "volcanic ash", "waterspout", "wildfire", "winter storm", "winter weather")
+```{r echo=FALSE}
+uniqueevents <- length(unique(stormData$EVTYPE))
 ```
 
+According to the NOAA, there are 48 categories a storm can be listed as. The full list can be found [here](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf). A quick summarization of our data however, shows that there are `r uniqueevents` unique storm event types listed. This means that some data cleansing will need to be done in order to get our events to get our number closer to 48. We will use the gsub function in our attempt to accomplish this.
+
 ``` {r}
+stormData$EVTYPE <- tolower(stormData$EVTYPE) ## lowercase the whole column to save us some typing
 stormData$EVTYPE <- gsub(".*(tornado).*","tornado", stormData$EVTYPE)
-stormData$EVTYPE <- gsub(".*(thunderstorm|tst).*","thunderstorm",stormData$EVTYPE)
 stormData$EVTYPE <- gsub(".*(flood).*","flood",stormData$EVTYPE)
-stormData$EVTYPE <- gsub(".*wind.*"," high wind",ignore.case <- TRUE,stormData$EVTYPE)
-stormData$EVTYPE <- gsub(".*hail.*","Hail", stormData$EVTYPE)
+stormData$EVTYPE <- gsub(".*wind.*","high wind",stormData$EVTYPE)
+stormData$EVTYPE <- gsub(".*(thunderstorm|tstm).*","thunderstorm wind",stormData$EVTYPE)
+stormData$EVTYPE <- gsub(".*hail.*","hail", stormData$EVTYPE)
 stormData$EVTYPE <- gsub(".*(snow).*","winter storm", stormData$EVTYPE)
-stormData$EVTYPE <- gsub(".*(flood|storm surge).*","flood",stormData$EVTYPE)
-stormData$EVTYPE <- gsub(".*(hurricane).*","hurricane",stormData$EVTYPE)
+stormData$EVTYPE <- gsub(".*(fld|flood|storm surge).*","flood",stormData$EVTYPE)
+stormData$EVTYPE <- gsub(".*(hurricane).*","hurricane (typhoon)",stormData$EVTYPE)
 stormData$EVTYPE <- gsub(".*(fire).*","wildfire",stormData$EVTYPE)
 stormData$EVTYPE <- gsub(".*(rain).*","heavy rain",stormData$EVTYPE)
 stormData$EVTYPE <- gsub(".*(heat|drought).*","drought",stormData$EVTYPE)
-stormData$EVTYPE <- gsub(".*(cold|freeze).*","freeze",stormData$EVTYPE)
+stormData$EVTYPE <- gsub(".*(cold|freeze).*","frost/freeze",stormData$EVTYPE)
 stormData$EVTYPE <- gsub(".*(ice|icy).*","ice storm",stormData$EVTYPE)
 stormData$EVTYPE <- gsub(".*(tropical storm).*","tropical storm",stormData$EVTYPE)
-stormData$EVTYPE <- gsub(".*(summary).*", "other", stormData$EVTYPE)
 ```
+
+Our data should now be tidier. We can now check to see how many of our observations now fall into the official 48 categories. First we will create a vector of the 48 events and then find the percentage of how many of our observations fall into these correct categories.
+
+```{r}
+EventTable <- c("astronomical low tide", "avalanche", "blizzard", "coastal flood", "cold/wind chill", "debris flow", "dense fog", "dense smoke", "drought", "dust devil", "dust storm", "excessive heat", "extreme cold/wind chill", "flash flood", "flood", "frost/freeze", "funnel cloud", "freezing fog", "hail", "heat", "heavy rain", "heavy snow", "high surf", "high wind", "hurricane (typhoon)", "ice storm", "lake-effect snow", "lakeshore flood", "lightning", "marine hail", "marine high wind", "marine strong wind", "marine thunderstorm wind", "rip current", "seiche", "sleet", "storm surge/tide", "strong wind", "thunderstorm wind", "tornado", "tropical depression", "tropical storm", "tsunami", "volcanic ash", "waterspout", "wildfire", "winter storm", "winter weather")
+
+sum(stormData$EVTYPE %in% EventTable)/nrow(stormData)
+```
+
+About 99% of our data now falls into the NOAA official categories. 
