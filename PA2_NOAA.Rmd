@@ -1,7 +1,7 @@
 NOAA Storm Database Analysis
 ============================
 
-##Introduction
+##Synopsis
 
 
 ##Data Processing
@@ -17,7 +17,7 @@ stormData <- read.csv(bz, header = TRUE, stringsAsFactors = FALSE, colClasses = 
 stormData$BGN_DATE <- as.Date(stormData$BGN_DATE, "%m/%d/%Y")
 ```
 
-```{r}
+```{r cache=TRUE}
 hist(stormData$BGN_DATE, breaks="years", xlab="Year", main = "Density of Data Per Year", col = "blue")
 
 stormData <- stormData[stormData$BGN_DATE >= "1996-01-01",]
@@ -29,7 +29,7 @@ uniqueevents <- length(unique(stormData$EVTYPE))
 
 According to the NOAA, there are 48 categories a storm can be listed as. The full list can be found [here](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf). A quick summarization of our data however, shows that there are `r uniqueevents` unique storm event types listed. This means that some data cleansing will need to be done in order to get our events to get our number closer to 48. We will use the gsub function in our attempt to accomplish this.
 
-``` {r}
+``` {r cache=TRUE}
 stormData$EVTYPE <- tolower(stormData$EVTYPE) ## lowercase the whole column to save us some typing
 stormData$EVTYPE <- gsub(".*(tornado).*","tornado", stormData$EVTYPE)
 stormData$EVTYPE <- gsub(".*(flood).*","flood",stormData$EVTYPE)
@@ -55,4 +55,14 @@ EventTable <- c("astronomical low tide", "avalanche", "blizzard", "coastal flood
 sum(stormData$EVTYPE %in% EventTable)/nrow(stormData)
 ```
 
-About 99% of our data now falls into the NOAA official categories. 
+About 99% of our data now falls into the NOAA official categories. For the purposes of this report this is good enough and we can now continue on to the analysis portion of our report.
+
+### Across the United States, which types of events are most harmful with respect to population health?
+
+The data provides two counts in reference to population health: fatalities and injuries per event. As the NOAA notes, "The determination of direct versus indirect causes of weather-related fatalities or injuries is one of the most difficult aspects of Storm Data preparation... It is impossible to include all possible cases in this Directive" (NWSI, p.9). For a more complete analysis in the future we might consider trying to distinguish indirect and direct injuries and fatalities. But for the purposes of this analysis we will consider them equal. 
+
+There is no standard formula for harm to population health. We are going to arbitrarily create the follwing equation to calculate harm per event: 
+
+  $Harm = \sum_{i=1}^{n} (2*Fatalities_{i} + Injuries_{i})/n$
+
+Where n is the number of occurences of that event. Again, as this is an arbitrarily assigned equation, we have decided to weight the fatalities in our equation. Most might agree that fatalities are more harmful to population health than injuries.
