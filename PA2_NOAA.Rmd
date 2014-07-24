@@ -16,18 +16,46 @@ stormData <- read.csv(bz, header = TRUE, stringsAsFactors = FALSE, colClasses = 
 
 stormData$BGN_DATE <- as.Date(stormData$BGN_DATE, "%m/%d/%Y")
 ```
+With our data now loaded we can look at a few summaries.
+```{r}
+summary(stormData)
 
-```{r cache=TRUE}
+length(unique(stormData$STATE))
+
 hist(stormData$BGN_DATE, breaks="years", xlab="Year", main = "Density of Data Per Year", col = "blue")
+```
+From the above we can note a few things: the two "EXP" columns are coded. Reading the [data dictionary](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) we find that they are supposed to be labled "K" for thousands, "M" for millions, and "B" for billions. Also, we can see there are more than 50 unique variables in the STATE column. And last, from the histogram we can see that data before 1996 is extremely lacking. 
 
-stormData <- stormData[stormData$BGN_DATE >= "1996-01-01",]
+For the purposes of this analysis we will ignore any data before 1996. We will also remove any data which has a non-standard US State abbreviation. Last we will need to transform the coded exponential multiplier to its numeric counterpart and multiply the CROPDMG and PROPDMG columns by these to get our true damages in currency.
+
+```{r}
+states <- c("AL", "AK", "AZ","AR","CA","CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY")
+
+stormData <- stormData[stormData$BGN_DATE >= "1996-01-01" & stormData$STATE %in% states,]
+x <- c(7,9) #columns containing our EXP
+
+for(j in 1:2){
+    for(i in 1:nrow(stormData)){
+             if(stormData[i,x[j]] == "K")
+                 stormData[i,x[j]] <- "1000"
+             else if(stormData[i,x[j]] == "M")
+                 stormData[i,x[j]] <- "1000000"
+             else if(stormData[i,x[j]] == "B")
+                 stormData[i,x[j]] <- "1000000000"
+             else
+                 stormData[i,x[j]] <- "1"
+    }
+}
+ 
+stormData$CROPDMGEXP <- as.numeric(stormData$CROPDMGEXP)
+stormData$PROPDMGEXP <- as.numeric(stormData$PROPDMGEXP)
 ```
 
 ```{r echo=FALSE}
-uniqueevents <- length(unique(stormData$EVTYPE))
+unique_events <- length(unique(stormData$EVTYPE))
 ```
 
-According to the NOAA, there are 48 categories a storm can be listed as. The full list can be found [here](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf). A quick summarization of our data however, shows that there are `r uniqueevents` unique storm event types listed. This means that some data cleansing will need to be done in order to get our events to get our number closer to 48. We will use the gsub function in our attempt to accomplish this.
+According to the NOAA, there are 48 categories a storm can be listed as. The full list can be found [here](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf). A quick summarization of our data however, shows that there are `r unique_events` unique storm event types listed. This means that some data cleansing will need to be done in order to get our events to get our number closer to 48. We will use the gsub function in our attempt to accomplish this.
 
 ``` {r cache=TRUE}
 stormData$EVTYPE <- tolower(stormData$EVTYPE) ## lowercase the whole column to save us some typing
@@ -40,8 +68,10 @@ stormData$EVTYPE <- gsub(".*(snow).*","winter storm", stormData$EVTYPE)
 stormData$EVTYPE <- gsub(".*(fld|flood|storm surge).*","flood",stormData$EVTYPE)
 stormData$EVTYPE <- gsub(".*(hurricane).*","hurricane (typhoon)",stormData$EVTYPE)
 stormData$EVTYPE <- gsub(".*(fire).*","wildfire",stormData$EVTYPE)
+stormData$EVTYPE <- gsub(".*(fog).*","dense fog",stormData$EVTYPE)
 stormData$EVTYPE <- gsub(".*(rain).*","heavy rain",stormData$EVTYPE)
 stormData$EVTYPE <- gsub(".*(heat|drought).*","drought",stormData$EVTYPE)
+stormData$EVTYPE <- gsub(".*(rip tide|rip current).*","rip current",stormData$EVTYPE)
 stormData$EVTYPE <- gsub(".*(cold|freeze).*","frost/freeze",stormData$EVTYPE)
 stormData$EVTYPE <- gsub(".*(ice|icy).*","ice storm",stormData$EVTYPE)
 stormData$EVTYPE <- gsub(".*(tropical storm).*","tropical storm",stormData$EVTYPE)
@@ -56,13 +86,30 @@ sum(stormData$EVTYPE %in% EventTable)/nrow(stormData)
 ```
 
 About 99% of our data now falls into the NOAA official categories. For the purposes of this report this is good enough and we can now continue on to the analysis portion of our report.
+## Results
 
 ### Across the United States, which types of events are most harmful with respect to population health?
 
 The data provides two counts in reference to population health: fatalities and injuries per event. As the NOAA notes, "The determination of direct versus indirect causes of weather-related fatalities or injuries is one of the most difficult aspects of Storm Data preparation... It is impossible to include all possible cases in this Directive" (NWSI, p.9). For a more complete analysis in the future we might consider trying to distinguish indirect and direct injuries and fatalities. But for the purposes of this analysis we will consider them equal. 
 
-There is no standard formula for harm to population health. We are going to arbitrarily create the follwing equation to calculate harm per event: 
+There is no standard formula for harm to population health. We are going to arbitrarily create the follwing equation to calculate harm per event type: 
 
-  $Harm = \sum_{i=1}^{n} (2*Fatalities_{i} + Injuries_{i})/n$
+  $Harm = \sum_{i=1}^{n} (2*Fatalities_{i} + Injuries_{i})$
 
-Where n is the number of occurences of that event. Again, as this is an arbitrarily assigned equation, we have decided to weight the fatalities in our equation. Most might agree that fatalities are more harmful to population health than injuries.
+Where n is the number of occurences of that event. Again, as this is an arbitrarily assigned equation, we have decided to weight the fatalities in our equation. For example, if a tornado had 4 fatalities and 10 injuries, we would want this to have a higher level of harm than a flood which had 0 fatalities and 14 injuries.
+
+``` {r}
+stormData$HARM <- 2*stormData$FATALITIES + stormData$INJURIES
+
+sumHarm <- aggregate(HARM ~ EVTYPE, data = stormData, FUN = sum)
+
+top15 <- head(sumHarm[order(sumHarm$HARM, decreasing=TRUE),], n=15)
+
+library(ggplot2)
+ggplot(top15, aes(EVTYPE, HARM, order=HARM)) + geom_bar(stat="identity", fill="red") + coord_flip() + labs(x = "", y="Total Harm", title="Total Harm by Event Type")
+
+```
+
+From the plot of the top 15 storm events by total harm we see that tornadoes far and away top our list. With droughts, floods, high wind, and lightning rounding out the top 5. 
+
+### Across the United States, which types of events have the greatest economic consequences?
