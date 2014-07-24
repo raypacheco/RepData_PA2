@@ -106,7 +106,7 @@ top15 <- head(sumHarm[order(sumHarm$HARM, decreasing=TRUE),], n=15)
 
 library(ggplot2)
 
-ggplot(top15, aes(EVTYPE, HARM, order=HARM)) + geom_bar(stat="identity", fill="red") + coord_flip() + labs(x = "", y="Total Harm", title="Total Harm by Event Type")
+ggplot(top15, aes(reorder(EVTYPE,HARM), HARM)) + geom_bar(stat="identity", fill="red") + coord_flip() + labs(x = "", y="Total Harm", title="Total Harm by Event Type")
 
 ```
 
@@ -117,6 +117,8 @@ From the plot of the top 15 storm events by total harm we see that tornadoes far
 Our data set reports economic impact in two columns: `CROPDMG` (crop damage) and `PROPDMG` (property damage). We will use the sum of these two observations to denote total economic impact. 
 
 As noted before these will need to be multiplied by their exponential column to get the true reported damage in dollars. We will also need to adjust for inflation. We will use the "Consumer Price Index for All Urban Consumers: All Items" from the [Federal Reserve Economic Data](http://research.stlouisfed.org/fred2/). The R package `quantmod` will be used in this calculation.
+
+Once we have this 
 
 ```{r message=FALSE, warning=FALSE}
 # convert the coded exp value to its numeric value
@@ -161,5 +163,5 @@ top15DMG <- head(sumDamage[order(sumDamage$TOTALDMG, decreasing=TRUE),], n=15)
 ```
 
 ```{r}
-ggplot(top15DMG, aes(EVTYPE, TOTALDMG/1000000, order=TOTALDMG)) + geom_bar(stat="identity", fill="red") + coord_flip() + labs(x = "", y="Total Damage (in millions)", title="Total Damage by Event Type")
+ggplot(top15DMG, aes(reorder(EVTYPE, TOTALDMG), TOTALDMG/1000000)) + geom_bar(stat="identity", fill="red") + coord_flip() + labs(x = "", y="Total Damage (in millions of dollars)", title="Total Monetary Damage by Event Type")
 ```
