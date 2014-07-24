@@ -12,8 +12,10 @@ filename <- "repdata-data-StormData.csv.bz2"
 bz <- bzfile(filename)
 
 to_read <- c("NULL", "character", rep("NULL", 4), "character", "character", rep("NULL", 14), "numeric", "numeric", "numeric", "character", "numeric", "character", rep("NULL", 3), "numeric", "numeric", rep("NULL", 3), "numeric")
+
 stormData <- read.csv(bz, header = TRUE, stringsAsFactors = FALSE, colClasses = to_read)
 
+# convert date column to R class date
 stormData$BGN_DATE <- as.Date(stormData$BGN_DATE, "%m/%d/%Y")
 ```
 With our data now loaded we can look at a few summaries.
@@ -24,33 +26,34 @@ length(unique(stormData$STATE))
 
 hist(stormData$BGN_DATE, breaks="years", xlab="Year", main = "Density of Data Per Year", col = "blue")
 ```
-From the above we can note a few things: the two "EXP" columns are coded. Reading the [data dictionary](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) we find that they are supposed to be labled "K" for thousands, "M" for millions, and "B" for billions. Also, we can see there are more than 50 unique variables in the STATE column. And last, from the histogram we can see that data before 1996 is extremely lacking. 
 
-For the purposes of this analysis we will ignore any data before 1996. We will also remove any data which has a non-standard US State abbreviation. Last we will need to transform the coded exponential multiplier to its numeric counterpart and multiply the CROPDMG and PROPDMG columns by these to get our true damages in currency.
+From the above we can note a few things: the two "EXP" columns, `CROPDMGEXP` and `PROPDMGEXP`, have class of character. Reading the [data dictionary](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) we find that they are supposed to be labled "K" for thousands, "M" for millions, and "B" for billions. Also, we can see there are more than 50 unique variables in the STATE column. And last, from the histogram we can see that data before 1996 is extremely lacking. 
+
+For the purposes of this analysis we will ignore any data before 1996. We will also remove any data which has a non-standard US State abbreviation. Last we will need to transform the coded exponential multiplier to its numeric counterpart.
 
 ```{r}
+# create a vector with the 50 standard US state abbreviations
 states <- c("AL", "AK", "AZ","AR","CA","CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY")
 
+# subset data set for after 1995 and only in the US
 stormData <- stormData[stormData$BGN_DATE >= "1996-01-01" & stormData$STATE %in% states,]
-x <- c(7,9) #columns containing our EXP
 
-for(j in 1:2){
-    for(i in 1:nrow(stormData)){
-             if(stormData[i,x[j]] == "K")
-                 stormData[i,x[j]] <- "1000"
-             else if(stormData[i,x[j]] == "M")
-                 stormData[i,x[j]] <- "1000000"
-             else if(stormData[i,x[j]] == "B")
-                 stormData[i,x[j]] <- "1000000000"
-             else
-                 stormData[i,x[j]] <- "1"
-    }
-}
- 
+# convert the coded exp value to its numeric value
+stormData$CROPDMGEXP[stormData$CROPDMGEXP == ""] <- "1"
+stormData$CROPDMGEXP[stormData$CROPDMGEXP == "K"] <- "1000"
+stormData$CROPDMGEXP[stormData$CROPDMGEXP == "M"] <- "1000000"
+stormData$CROPDMGEXP[stormData$CROPDMGEXP == "B"] <- "1000000000"
+
+stormData$PROPDMGEXP[stormData$PROPDMGEXP == ""|stormData$PROPDMGEXP == "0"] <- "1"
+stormData$PROPDMGEXP[stormData$PROPDMGEXP == "K"] <- "1000"
+stormData$PROPDMGEXP[stormData$PROPDMGEXP == "M"] <- "1000000"
+stormData$PROPDMGEXP[stormData$PROPDMGEXP == "B"] <- "1000000000"
+
 stormData$CROPDMGEXP <- as.numeric(stormData$CROPDMGEXP)
 stormData$PROPDMGEXP <- as.numeric(stormData$PROPDMGEXP)
 ```
 
+There is one more thing we must look at before we can perform our analysis - the event types as indicated by the column `EVTYPE`.
 ```{r echo=FALSE}
 unique_events <- length(unique(stormData$EVTYPE))
 ```
@@ -86,7 +89,8 @@ sum(stormData$EVTYPE %in% EventTable)/nrow(stormData)
 ```
 
 About 99% of our data now falls into the NOAA official categories. For the purposes of this report this is good enough and we can now continue on to the analysis portion of our report.
-## Results
+
+##Results
 
 ### Across the United States, which types of events are most harmful with respect to population health?
 
