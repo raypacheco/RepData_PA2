@@ -2,9 +2,13 @@ NOAA Storm Database Analysis
 ============================
 
 ##Synopsis
-
+Storms and other severe weather events can cause both public health and economic problems for communities. Storm events can result in fatalities, injuries, and property damage. This analysis sets to answer two questions: 1) Across the United States, which types of events are most harmful with respect to population health, and 2) which types of events have the greatest economic consequences?
 
 ##Data Processing
+For this analysis we will be using data from the U.S. National Oceanic and Atmospheric Administration's (NOAA) [storm database](http://www.ncdc.noaa.gov/stormevents/). According to the NOAA website "the database currently contains data from January 1950 to April 2014, as entered by NOAA's National Weather Service (NWS)."
+
+###Loading the Data
+Before we can begin we must first load and process the data into a useable form. The data for this assignment come in the form of a comma-separated-value file compressed via the bzip2 algorithm to reduce its size.
 
 ```{r cache = TRUE}
 filename <- "repdata-data-StormData.csv.bz2"
@@ -27,30 +31,21 @@ length(unique(stormData$STATE))
 hist(stormData$BGN_DATE, breaks="years", xlab="Year", main = "Density of Data Per Year", col = "blue")
 ```
 
-From the above we can note a few things: the two "EXP" columns, `CROPDMGEXP` and `PROPDMGEXP`, have class of character. Reading the [data dictionary](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) we find that they are supposed to be labled "K" for thousands, "M" for millions, and "B" for billions. Also, we can see there are more than 50 unique variables in the STATE column. And last, from the histogram we can see that data before 1996 is extremely lacking. 
+From the above we can note a few things: the two "exponential" columns, `CROPDMGEXP` and `PROPDMGEXP`, have class of character. Reading the [NOAA Storm Data dictionary](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) we find that they are supposed to be labled "K" for thousands, "M" for millions, and "B" for billions (NWSI, p. 12). 
 
-For the purposes of this analysis we will ignore any data before 1996. We will also remove any data which has a non-standard US State abbreviation. Last we will need to transform the coded exponential multiplier to its numeric counterpart.
+Also, we can see there are more than 50 unique variables in the `STATE` column. 
 
-```{r}
+And last, from the histogram we can see that data before 1996 is extremely lacking. 
+
+### Tidying the Data
+For the purposes of this analysis we will ignore any data before 1996. We will also remove any data which has a non-standard US State abbreviation. Changing the exponential to its numeric form will take place later in the analysis when it is needed.
+
+```{r cache=TRUE}
 # create a vector with the 50 standard US state abbreviations
 states <- c("AL", "AK", "AZ","AR","CA","CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY")
 
 # subset data set for after 1995 and only in the US
 stormData <- stormData[stormData$BGN_DATE >= "1996-01-01" & stormData$STATE %in% states,]
-
-# convert the coded exp value to its numeric value
-stormData$CROPDMGEXP[stormData$CROPDMGEXP == ""] <- "1"
-stormData$CROPDMGEXP[stormData$CROPDMGEXP == "K"] <- "1000"
-stormData$CROPDMGEXP[stormData$CROPDMGEXP == "M"] <- "1000000"
-stormData$CROPDMGEXP[stormData$CROPDMGEXP == "B"] <- "1000000000"
-
-stormData$PROPDMGEXP[stormData$PROPDMGEXP == ""|stormData$PROPDMGEXP == "0"] <- "1"
-stormData$PROPDMGEXP[stormData$PROPDMGEXP == "K"] <- "1000"
-stormData$PROPDMGEXP[stormData$PROPDMGEXP == "M"] <- "1000000"
-stormData$PROPDMGEXP[stormData$PROPDMGEXP == "B"] <- "1000000000"
-
-stormData$CROPDMGEXP <- as.numeric(stormData$CROPDMGEXP)
-stormData$PROPDMGEXP <- as.numeric(stormData$PROPDMGEXP)
 ```
 
 There is one more thing we must look at before we can perform our analysis - the event types as indicated by the column `EVTYPE`.
@@ -58,7 +53,7 @@ There is one more thing we must look at before we can perform our analysis - the
 unique_events <- length(unique(stormData$EVTYPE))
 ```
 
-According to the NOAA, there are 48 categories a storm can be listed as. The full list can be found [here](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf). A quick summarization of our data however, shows that there are `r unique_events` unique storm event types listed. This means that some data cleansing will need to be done in order to get our events to get our number closer to 48. We will use the gsub function in our attempt to accomplish this.
+According to the NOAA, there are 48 categories a storm can be listed as. The full list can be found [here](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf) (NWSI, p.6). A quick summarization of our data however, shows that there are `r unique_events` unique storm event types listed. This means that some data cleansing will need to be done in order to get our events to get our number closer to 48. We will use the gsub function in our attempt to accomplish this.
 
 ``` {r cache=TRUE}
 stormData$EVTYPE <- tolower(stormData$EVTYPE) ## lowercase the whole column to save us some typing
@@ -85,10 +80,10 @@ Our data should now be tidier. We can now check to see how many of our observati
 ```{r}
 EventTable <- c("astronomical low tide", "avalanche", "blizzard", "coastal flood", "cold/wind chill", "debris flow", "dense fog", "dense smoke", "drought", "dust devil", "dust storm", "excessive heat", "extreme cold/wind chill", "flash flood", "flood", "frost/freeze", "funnel cloud", "freezing fog", "hail", "heat", "heavy rain", "heavy snow", "high surf", "high wind", "hurricane (typhoon)", "ice storm", "lake-effect snow", "lakeshore flood", "lightning", "marine hail", "marine high wind", "marine strong wind", "marine thunderstorm wind", "rip current", "seiche", "sleet", "storm surge/tide", "strong wind", "thunderstorm wind", "tornado", "tropical depression", "tropical storm", "tsunami", "volcanic ash", "waterspout", "wildfire", "winter storm", "winter weather")
 
-sum(stormData$EVTYPE %in% EventTable)/nrow(stormData)
+100*sum(stormData$EVTYPE %in% EventTable)/nrow(stormData)
 ```
 
-About 99% of our data now falls into the NOAA official categories. For the purposes of this report this is good enough and we can now continue on to the analysis portion of our report.
+More than 99% of our data now falls into the NOAA official categories. For the purposes of this report this is good enough and we can now continue on to the analysis portion of our report.
 
 ##Results
 
@@ -102,7 +97,7 @@ There is no standard formula for harm to population health. We are going to arbi
 
 Where n is the number of occurences of that event. Again, as this is an arbitrarily assigned equation, we have decided to weight the fatalities in our equation. For example, if a tornado had 4 fatalities and 10 injuries, we would want this to have a higher level of harm than a flood which had 0 fatalities and 14 injuries.
 
-``` {r}
+``` {r message=FALSE, warning=FALSE}
 stormData$HARM <- 2*stormData$FATALITIES + stormData$INJURIES
 
 sumHarm <- aggregate(HARM ~ EVTYPE, data = stormData, FUN = sum)
@@ -110,6 +105,7 @@ sumHarm <- aggregate(HARM ~ EVTYPE, data = stormData, FUN = sum)
 top15 <- head(sumHarm[order(sumHarm$HARM, decreasing=TRUE),], n=15)
 
 library(ggplot2)
+
 ggplot(top15, aes(EVTYPE, HARM, order=HARM)) + geom_bar(stat="identity", fill="red") + coord_flip() + labs(x = "", y="Total Harm", title="Total Harm by Event Type")
 
 ```
@@ -117,3 +113,53 @@ ggplot(top15, aes(EVTYPE, HARM, order=HARM)) + geom_bar(stat="identity", fill="r
 From the plot of the top 15 storm events by total harm we see that tornadoes far and away top our list. With droughts, floods, high wind, and lightning rounding out the top 5. 
 
 ### Across the United States, which types of events have the greatest economic consequences?
+
+Our data set reports economic impact in two columns: `CROPDMG` (crop damage) and `PROPDMG` (property damage). We will use the sum of these two observations to denote total economic impact. 
+
+As noted before these will need to be multiplied by their exponential column to get the true reported damage in dollars. We will also need to adjust for inflation. We will use the "Consumer Price Index for All Urban Consumers: All Items" from the [Federal Reserve Economic Data](http://research.stlouisfed.org/fred2/). The R package `quantmod` will be used in this calculation.
+
+```{r message=FALSE, warning=FALSE}
+# convert the coded exp value to its numeric value
+stormData$CROPDMGEXP[stormData$CROPDMGEXP == ""] <- "1"
+stormData$CROPDMGEXP[stormData$CROPDMGEXP == "K"] <- "1000"
+stormData$CROPDMGEXP[stormData$CROPDMGEXP == "M"] <- "1000000"
+stormData$CROPDMGEXP[stormData$CROPDMGEXP == "B"] <- "1000000000"
+
+stormData$PROPDMGEXP[stormData$PROPDMGEXP == ""|stormData$PROPDMGEXP == "0"] <- "1"
+stormData$PROPDMGEXP[stormData$PROPDMGEXP == "K"] <- "1000"
+stormData$PROPDMGEXP[stormData$PROPDMGEXP == "M"] <- "1000000"
+stormData$PROPDMGEXP[stormData$PROPDMGEXP == "B"] <- "1000000000"
+
+stormData$CROPDMGEXP <- as.numeric(stormData$CROPDMGEXP)
+stormData$PROPDMGEXP <- as.numeric(stormData$PROPDMGEXP)
+
+stormData$CROPDMG <- stormData$CROPDMG*stormData$CROPDMGEXP
+stormData$PROPDMG <- stormData$PROPDMG*stormData$PROPDMGEXP
+
+library(quantmod) #load quantmod package
+
+getSymbols("CPIAUCSL", src='FRED') #download CPI from FRED
+
+CPI <- data.frame(date=index(CPIAUCSL), coredata(CPIAUCSL)) #convert to data fram from xts
+
+currentcpi <- CPI$CPIAUCSL[CPI$date == '2014-06-01'] #latest CPI
+
+CPI$adj <- CPI$CPIAUCSL/currentcpi #adjust all CPI's to latest CPI
+
+CPI$date <- format(CPI$date, "%Y/%m") #format date so we can merge with stormData
+
+stormData$date <- format(stormData$BGN_DATE, "%Y/%m") #format date to match with CPI
+
+stormData <- merge(stormData, CPI, by = "date") #merge the two dataframes
+
+stormData$TOTALDMG <- (stormData$PROPDMG + stormData$CROPDMG)*stormData$adj
+
+sumDamage <- aggregate(TOTALDMG~EVTYPE, data=stormData, FUN=sum)
+
+top15DMG <- head(sumDamage[order(sumDamage$TOTALDMG, decreasing=TRUE),], n=15)
+
+```
+
+```{r}
+ggplot(top15DMG, aes(EVTYPE, TOTALDMG/1000000, order=TOTALDMG)) + geom_bar(stat="identity", fill="red") + coord_flip() + labs(x = "", y="Total Damage (in millions)", title="Total Damage by Event Type")
+```
